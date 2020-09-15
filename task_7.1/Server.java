@@ -1,4 +1,4 @@
-package server;
+package Server;
 
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
@@ -6,56 +6,82 @@ import java.io.IOException;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.util.ArrayList;
-import java.util.Scanner;
-import java.util.logging.Handler;
-import java.util.logging.LogRecord;
-
 
 public class Server {
-    static ArrayList<Socket> clients = new ArrayList<>();
+    static ArrayList<User> users = new ArrayList<>();
+
     public static void main(String[] args) {
-        Socket socket = null;
-        Scanner scanner = new Scanner(System.in);
-        System.out.print("В ведите логин: ");
-        String login = scanner.nextLine();
-        System.out.println(login);
-        System.out.print("В ведите пароль: ");
-        String password = scanner.nextLine();
-        System.out.println(password);
         try {
             ServerSocket serverSocket = new ServerSocket(8189);
             System.out.println("Сервер запущен");
-            while (true){
-                socket = serverSocket.accept();
-                clients.add(socket);
-                DataInputStream in = new DataInputStream(socket.getInputStream());
-                DataOutputStream out = new DataOutputStream(socket.getOutputStream());
-                System.out.println("Клиент подключился");
+            while (true) {
+                Socket socket = serverSocket.accept();
+                DataInputStream incoming = new DataInputStream(socket.getInputStream());
+                DataOutputStream outgoing = new DataOutputStream(socket.getOutputStream());
+                System.out.println("Клиент подключен.");
                 Thread thread = new Thread(new Runnable() {
                     @Override
                     public void run() {
                         try {
-                            while (true){
-                                String str = in.readUTF();
-                                broadcastMsg(str);
-                                System.out.println("Клиент прислал сообщение: "+str);
+                            outgoing.writeUTF("Укажите ваше имя:");
+                            String name = incoming.readUTF();
+                            System.out.println("name: " + name);
+
+                            User user = new User(name, socket);
+                            users.add(user);
+
+                            while (true) {
+                                String str = incoming.readUTF();
+                                broadcastMsg(user.name, str);
+
+                                System.out.println(user.name + " прислал сообщение: " + str);
                             }
-                        }catch (IOException e){
+                        } catch (IOException e) {
                             e.printStackTrace();
                         }
                     }
                 });
                 thread.start();
             }
-        }catch (IOException ex){
-            ex.printStackTrace();
+        } catch (IOException e) {
+            e.printStackTrace();
         }
     }
-    public static void broadcastMsg(String str) throws IOException{
-        DataOutputStream out;
-        for (Socket socket : clients){
-            out = new DataOutputStream(socket.getOutputStream());
-            out.writeUTF(str);
+
+    public static void broadcastMsg(String userName, String str) {
+        DataOutputStream outgoing;
+        for (User user: users) {
+            user.send(userName + " сказал: " + str);
+        }
+    }
+
+    public static void sendToClient(String name, String text) {
+        for (User user: users) {
+            if (user.name.equals(name)) {
+                user.send(text);
+                break;
+            }
+        }
+    }
+
+}
+
+class User {
+    String name;
+    Socket socket;
+
+    User(String name, Socket socket) {
+        this.name = name;
+        this.socket = socket;
+    }
+
+    void send(String text) {
+        DataOutputStream outgoing;
+        try {
+            outgoing = new DataOutputStream(socket.getOutputStream());
+            outgoing.writeUTF(text);
+        } catch (IOException e) {
+            e.printStackTrace();
         }
     }
 }
