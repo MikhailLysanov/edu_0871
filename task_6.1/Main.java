@@ -21,8 +21,9 @@ public class Main {
             String ip = ipWithPort[0];
             int port = Integer.parseInt(ipWithPort[1]);
             
- Thread thread = new Thread(new ProxyCheckerN2(ip, port)); 
-
+            ProxyCheckerN1 thread = new ProxyCheckerN1(ip, port);
+            ProxyCheckerN2 thread = new ProxyCheckerN2(ip, port);
+          
 
         }
 
@@ -76,12 +77,36 @@ class ProxyCheckerN2 implements Runnable {
 
     @Override
     public void run() {
-      
+//        System.out.println(getName());
         ProxyChecker.checkProxy(ip, port);
     }
 
 }
 
+class ProxyChecker {
 
+    static void checkProxy(String ip, int port) { //throws Exception
+        try {
+            Proxy proxy = new Proxy(Proxy.Type.HTTP, new InetSocketAddress(ip, port));
+            URLConnection connection = new URL("https://vozhzhaev.ru/test.php").openConnection(proxy);
 
+            InputStream is = connection.getInputStream();
+            InputStreamReader reader = new InputStreamReader(is);
+            char[] buffer = new char[256];
+            int rc;
+
+            StringBuilder sb = new StringBuilder();
+
+            while ((rc = reader.read(buffer)) != -1)
+                sb.append(buffer, 0, rc);
+
+            reader.close();
+
+            System.out.println(sb);
+        } catch (Exception e) {
+            System.out.println("ip" + ip + ":" + port + " не доступен");
+        }
+    }
+
+}
 
